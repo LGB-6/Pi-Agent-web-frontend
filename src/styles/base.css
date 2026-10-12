@@ -1,0 +1,52 @@
+/*
+ * 全局基线样式。
+ *
+ * 这里只放元素级重置，且刻意保持低优先级（单元素选择器），
+ * 让组件的 scoped 样式可以正常覆盖它们。
+ * 所有组件内的类样式（含响应式断点）都写在各自的 SFC 里。
+ */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  width: 100%;
+  min-width: 320px;
+  height: 100%;
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  min-height: 100dvh;
+}
+
+button,
+textarea {
+  font: inherit;
+}
+
+button {
+  color: inherit;
+  cursor: pointer;
+}
+
+button:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #a6b5cc;
+  outline-offset: 2px;
+}
+
+svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}

@@ -1,0 +1,18 @@
+/* 设计令牌：颜色变量与全局字体设置。唯一允许跨组件共享的样式来源。 */
+
+:root {
+  font-family: Inter, "Segoe UI", "Microsoft YaHei", sans-serif;
+  color: #252932;
+  background: #fff;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  --text: #252932;
+  --muted: #858b96;
+  --subtle: #a1a6af;
+  --line: #eceef2;
+  --sidebar-bg: #f8f9fb;
+  --panel-bg: #fcfcfd;
+}
