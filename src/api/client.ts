@@ -31,8 +31,8 @@ export async function readErrorDetail(response: Response): Promise<string> {
   return detail;
 }
 
-/** 发起 GET 请求并解析 JSON，非 2xx 时抛出带后端文案的 Error。 */
-export async function getJson<T>(
+/** 发起请求并解析 JSON，非 2xx 时抛出带后端文案的 Error。 */
+export async function requestJson<T>(
   path: string,
   init?: RequestInit,
 ): Promise<T> {
@@ -43,4 +43,26 @@ export async function getJson<T>(
   }
 
   return (await response.json()) as T;
+}
+
+/** GET 一个 JSON 接口。 */
+export function getJson<T>(path: string, init?: RequestInit): Promise<T> {
+  return requestJson<T>(path, init);
+}
+
+/**
+ * 带 JSON 请求体的写操作。
+ * body 省略时不发 Content-Type 与请求体。
+ */
+export function sendJson<T>(
+  method: "POST" | "PATCH" | "DELETE",
+  path: string,
+  body?: unknown,
+): Promise<T> {
+  return requestJson<T>(path, {
+    method,
+    headers:
+      body === undefined ? undefined : { "Content-Type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
 }

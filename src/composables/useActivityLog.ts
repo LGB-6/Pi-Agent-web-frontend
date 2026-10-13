@@ -40,6 +40,20 @@ function addActivity(
   }
 }
 
+/**
+ * 清空流水。
+ *
+ * 切换会话后调用：上一条流水讲的是上一个会话的事，留在面板里会与眼睛看到的
+ * 会话对不上（右边写着「回答完成」，中间却是另一个会话的内容）。
+ *
+ * 清空而不是"只留第一句已就绪"：那句初始文案可能早就被挤掉了
+ * （满 100 条时从头部丢），把它当成固定锚点会在长会话里留下一条无关记录。
+ * 清空之后由调用方补一条说明，面板不会空着。
+ */
+function clearActivities() {
+  activities.value = [];
+}
+
 export function useActivityLog() {
-  return { activities, sortedActivities, addActivity };
+  return { activities, sortedActivities, addActivity, clearActivities };
 }

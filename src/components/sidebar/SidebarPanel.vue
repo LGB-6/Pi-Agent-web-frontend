@@ -1,16 +1,18 @@
 <script setup lang="ts">
-import { useChatSession } from "../../composables/useChatSession";
-import { useComposer } from "../../composables/useComposer";
 import { useLayoutPanels } from "../../composables/useLayoutPanels";
 import BrandMark from "../ui/BrandMark.vue";
 import IconButton from "../ui/IconButton.vue";
 import HistoryList from "./HistoryList.vue";
 import SidebarProfile from "./SidebarProfile.vue";
 
-/** 左侧栏：品牌、新建/搜索、历史、身份区。 */
+/**
+ * 左侧栏：品牌、折叠按钮、会话树、身份区。
+ *
+ * 这里原本还有「新建对话」和「搜索对话」两个入口，已随会话历史功能一起去掉：
+ * 新建会话只能靠重启 pi-web，搜索不做（设计第五、六节）。
+ * 顺带清掉了两个 Ctrl K 提示 —— 它绑的一直是「聚焦输入框」，不是新建或搜索。
+ */
 const { sidebarOpen, toggleSidebar } = useLayoutPanels();
-const { startNewChat } = useChatSession();
-const { focusInput } = useComposer();
 </script>
 
 <template>
@@ -30,37 +32,9 @@ const { focusInput } = useComposer();
     </div>
 
     <template v-if="sidebarOpen">
-      <button class="new-chat-button" @click="startNewChat">
-        <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
-        <span>新建对话</span>
-        <kbd>Ctrl K</kbd>
-      </button>
-
-      <button
-        class="search-button"
-        title="搜索入口（完整历史搜索待接入）"
-        @click="focusInput"
-      >
-        <svg viewBox="0 0 24 24">
-          <circle cx="10.8" cy="10.8" r="6.8" />
-          <path d="m16 16 4.5 4.5" />
-        </svg>
-        <span>搜索对话</span>
-        <kbd>Ctrl K</kbd>
-      </button>
-
       <HistoryList />
       <SidebarProfile />
     </template>
-
-    <IconButton
-      v-else
-      class="collapsed-new-chat"
-      title="新建对话"
-      @click="startNewChat"
-    >
-      <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
-    </IconButton>
   </aside>
 </template>
 
@@ -102,62 +76,6 @@ const { focusInput } = useComposer();
   letter-spacing: -0.3px;
 }
 
-.new-chat-button,
-.search-button {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  width: 100%;
-  min-height: 39px;
-  padding: 0 10px;
-  border: 1px solid transparent;
-  border-radius: 9px;
-  text-align: left;
-  background: transparent;
-  color: #555b66;
-}
-
-.new-chat-button {
-  border-color: #e3e6eb;
-  background: #fff;
-  box-shadow: 0 1px 2px #20293808;
-  font-weight: 600;
-}
-
-.new-chat-button:hover {
-  border-color: #d4d9e1;
-  background: #fdfdfd;
-}
-
-.new-chat-button svg {
-  width: 17px;
-}
-
-.new-chat-button kbd,
-.search-button kbd {
-  margin-left: auto;
-  color: #a2a6ae;
-  font-size: 10px;
-  white-space: nowrap;
-}
-
-.search-button {
-  margin-top: 7px;
-  color: #7d828d;
-}
-
-.search-button:hover {
-  background: #eff1f4;
-}
-
-.search-button svg {
-  width: 16px;
-}
-
-.collapsed-new-chat {
-  margin-top: 4px;
-}
-
 @media (max-width: 1200px) {
   .sidebar {
     flex-basis: 220px;
@@ -178,7 +96,7 @@ const { focusInput } = useComposer();
   }
 }
 
-/* 窄屏下侧栏收成图标条，只留折叠按钮和新建按钮。 */
+/* 窄屏下侧栏收成图标条，只剩折叠按钮。 */
 @media (max-width: 760px) {
   .sidebar {
     flex-basis: 54px;
@@ -190,19 +108,8 @@ const { focusInput } = useComposer();
     margin-bottom: 17px;
   }
 
-  .sidebar-brand .brand,
-  .new-chat-button span,
-  .new-chat-button kbd,
-  .search-button {
+  .sidebar-brand .brand {
     display: none;
-  }
-
-  .new-chat-button {
-    justify-content: center;
-    width: 36px;
-    min-height: 36px;
-    padding: 0;
-    background: #fff;
   }
 }
 

@@ -7,6 +7,14 @@ import { useAutoScroll } from "./useAutoScroll";
 import { useComposer } from "./useComposer";
 import { useHealth } from "./useHealth";
 import { useNotification } from "./useNotification";
+import { useSessionHistory } from "./useSessionHistory";
+
+/**
+ * 注意这两处互相依赖的写法（见 useSessionHistory 顶部的说明）：
+ * useChatSession 要在收尾时刷新树，useSessionHistory 要在切换时换消息。
+ * **取对方必须发生在调用点，不能提到工厂函数体里** —— 提上去就成了
+ * useChatSession() → useSessionHistory() → useChatSession() → … 的无限递归。
+ */
 
 /**
  * 聊天会话：消息列表 + 发送 / 停止。
@@ -100,6 +108,19 @@ export function useChatSession() {
       controller = null;
       isStreaming.value = false;
       void loadHealth();
+
+      // 会话文件是懒写的：第一条消息落盘之前它在磁盘上根本不存在，
+      // 树里也就没有对应节点。一轮结束（顺利答完、被中断、或出错）之后
+      // 文件一定已经写出来了，这时再拉一次树，新会话才出现并高亮（设计 7.2）。
+      //
+      // 放在 finally 而不是只挂在 onDone 上：三条收尾路径都会让文件多出内容，
+      // 只挂 onDone 会漏掉"有内容的中断/失败"。多拉一次没有代价 ——
+      // loadSessions 不会重置用户手动展开的分组（hasLoaded 那道判断）。
+      //
+      // 在调用点取 useSessionHistory()，不把它提到工厂函数体里：两个 composable
+      // 互相依赖，提前取就成了无限递归。
+      void useSessionHistory().loadSessions();
+
       scrollToBottom();
       focusInput();
     }
@@ -110,21 +131,15 @@ export function useChatSession() {
   }
 
   /**
-   * 后端目前只维护一个 Pi 会话，无法真正开新对话。
-   * 保留界面行为：空会话时聚焦输入框，否则提示暂不支持。
+   * 整批换掉消息列表。切换会话后调用（设计 第十节）。
+   *
+   * 整体替换而不是逐条 push：消息是另一个会话的，没有共同的 id 可以对齐，
+   * 逐条增删只会让列表短暂闪出两个会话的内容。
+   *
+   * 只在没有生成时才调用 —— 生成中切换本来就被后端拦着（409 BUSY）。
    */
-  function startNewChat() {
-    if (isStreaming.value) return;
-
-    if (messages.value.length) {
-      notifyError(
-        "当前后端只有一个 Pi 会话。接入独立会话管理后即可安全创建新对话。",
-      );
-      addActivity("新建对话", "等待后端支持独立会话创建。");
-      return;
-    }
-
-    focusInput();
+  function replaceMessages(next: ChatMessage[]) {
+    messages.value = next;
   }
 
   /** 组件卸载时中断在途请求。由 App.vue 在 onBeforeUnmount 调用。 */
@@ -133,5 +148,12 @@ export function useChatSession() {
     controller = null;
   }
 
-  return { messages, isStreaming, sendMessage, stopGeneration, startNewChat, dispose };
+  return {
+    messages,
+    isStreaming,
+    sendMessage,
+    stopGeneration,
+    replaceMessages,
+    dispose,
+  };
 }

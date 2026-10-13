@@ -1,38 +1,48 @@
 <script setup lang="ts">
-import { computed } from "vue";
-import { useChatSession } from "../../composables/useChatSession";
+import { useSessionHistory } from "../../composables/useSessionHistory";
+import WorkspaceGroup from "./WorkspaceGroup.vue";
 
-/** 最近对话列表。后端还没有多会话，所以目前只有一条。 */
-const { messages } = useChatSession();
-
-// 取「最后一条」用户消息作为标题（原文用的是 find，取到的是第一条）。
-const latestUserMessage = computed(() => {
-  const latest = messages.value.filter((m) => m.role === "user").at(-1);
-  return latest?.content || "当前对话";
-});
+/**
+ * 会话历史树的容器：加载态 / 树 / 空态。
+ *
+ * 数据由 App.vue 在挂载时拉（与 loadHealth 一致），这里只负责渲染。
+ * 状态全在 useSessionHistory 里，通过模块级 ref 共享。
+ */
+const { groups, hasLoaded, isLoading, isEmpty } = useSessionHistory();
 </script>
 
 <template>
-  <div class="history-heading">最近对话</div>
+  <div class="history">
+    <div class="history-heading">会话历史</div>
 
-  <div class="history-list">
-    <button class="history-item history-item--active">
-      <svg viewBox="0 0 24 24">
-        <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z" />
-        <path d="M4 5.5v15M8 7h8M8 10.5h7" />
-      </svg>
-      <span>{{ latestUserMessage }}</span>
-    </button>
+    <div v-if="!hasLoaded && isLoading" class="history-state">
+      正在读取会话…
+    </div>
 
-    <p v-if="messages.length === 0" class="history-empty">
-      开始一段对话后，它会显示在这里。
+    <div v-else-if="isEmpty" class="history-state">
+      这个工作目录下还没有会话。
       <br />
-      多会话历史将在接入 Pi 会话管理后启用。
-    </p>
+      开始一段对话后，它会显示在这里。
+    </div>
+
+    <div v-else class="history-tree">
+      <WorkspaceGroup
+        v-for="group in groups"
+        :key="group.cwd"
+        :group="group"
+      />
+    </div>
   </div>
 </template>
 
 <style scoped>
+.history {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
 .history-heading {
   margin: 29px 9px 10px;
   color: #999ea8;
@@ -40,57 +50,24 @@ const latestUserMessage = computed(() => {
   font-weight: 600;
 }
 
-.history-list {
+.history-tree {
+  flex: 1;
   min-height: 0;
   overflow-y: auto;
 }
 
-.history-item {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  width: 100%;
-  min-width: 0;
-  padding: 10px 9px;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: #626874;
-  text-align: left;
-}
-
-.history-item:hover {
-  background: #eff1f5;
-}
-
-.history-item--active {
-  color: #2e333d;
-  background: #e9ecf1;
-}
-
-.history-item svg {
-  width: 16px;
-  height: 16px;
-}
-
-.history-item span {
-  overflow: hidden;
-  font-size: 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.history-empty {
+.history-state {
   padding: 9px 10px;
   color: #a0a5ae;
   font-size: 11px;
   line-height: 1.8;
 }
 
-/* 窄屏下整个侧栏收成图标条，历史列表随之隐藏。 */
+/* 窄屏下整个侧栏收成图标条，历史树随之隐藏。 */
 @media (max-width: 760px) {
   .history-heading,
-  .history-list {
+  .history-tree,
+  .history-state {
     display: none;
   }
 }

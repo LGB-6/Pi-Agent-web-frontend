@@ -7,6 +7,7 @@ import { useChatSession } from "./composables/useChatSession";
 import { useGlobalShortcut } from "./composables/useGlobalShortcut";
 import { useHealth } from "./composables/useHealth";
 import { useLayoutPanels } from "./composables/useLayoutPanels";
+import { useSessionHistory } from "./composables/useSessionHistory";
 
 /**
  * 应用外壳：只负责三栏布局与生命周期装配。
@@ -14,12 +15,14 @@ import { useLayoutPanels } from "./composables/useLayoutPanels";
  */
 const { rightPanelOpen } = useLayoutPanels();
 const { loadHealth } = useHealth();
+const { loadSessions } = useSessionHistory();
 const { dispose } = useChatSession();
 
 useGlobalShortcut();
 
 onMounted(() => {
   void loadHealth();
+  void loadSessions();
 });
 
 // 卸载时中断可能还在进行的流式请求。
