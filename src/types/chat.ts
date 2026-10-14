@@ -26,7 +26,22 @@ export interface Activity {
 export interface Health {
   success?: boolean;
   message?: string;
+  /**
+   * 当前生效的工作目录。
+   *
+   * 有运行时就是**会话自己的 cwd** —— Pi 原生行为是换会话即换工作目录，
+   * 所以它可能已经不是启动时那个目录了。
+   */
   workspace?: string;
+  /** 启动工作区，进程级、一辈子不变。用来跟上面那个对比。 */
+  launchWorkspace?: string;
+  /**
+   * workspace 是否就是 launchWorkspace。
+   *
+   * 判断由后端做：路径归一（Windows 盘符大小写）已经有 samePath 了，
+   * 没必要让前端再实现一遍。
+   */
+  isLaunchWorkspace?: boolean;
   sessionInitialized?: boolean;
   isPrompting?: boolean;
 }

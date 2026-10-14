@@ -1,12 +1,17 @@
 import { computed, ref } from "vue";
 import {
+  createSession,
   deleteSession,
   fetchSessions,
   renameSession,
   switchSession,
 } from "../api/sessions";
-import type { SessionSummary, WorkspaceGroup } from "../types/session";
-import { sessionTitle } from "../utils/session";
+import type {
+  SessionSummary,
+  SwitchSessionResponse,
+  WorkspaceGroup,
+} from "../types/session";
+import { sessionTitle, workspaceLabel } from "../utils/session";
 import { useActivityLog } from "./useActivityLog";
 import { useChatSession } from "./useChatSession";
 import { useHealth } from "./useHealth";
@@ -108,6 +113,52 @@ export function useSessionHistory() {
   }
 
   /**
+   * 会话被换掉之后的联动刷新（设计 8.3 / 第十节）。
+   *
+   * 切换会话、在启动工作区新建会话，都要走这一整套：聊天区、右栏工作区、活动流水、
+   * 报错、树 —— 五处全是「上一个会话的残留」，不换掉屏幕上就会同时挂着两个会话的东西。
+   *
+   * @param result 后端返回的 { currentCwd, activeSessionPath, messages }
+   * @param activityTitle 写进活动流水的标题
+   * @param activityDetail 同上，明细
+   */
+  async function applyActivatedSession(
+    result: SwitchSessionResponse,
+    activityTitle: string,
+    activityDetail: string,
+  ) {
+    currentCwd.value = result.currentCwd;
+    activeSessionPath.value = result.activeSessionPath;
+
+    // 换过去之后那组必须是展开的，否则当前节点藏在折叠的分组里。
+    const next = new Set(expandedWorkspaces.value);
+    next.add(result.currentCwd);
+    expandedWorkspaces.value = next;
+
+    // 1. 聊天区换成目标会话的内容。漏掉这一步，切完之后中间栏还挂着
+    //    上一个会话的对话 —— 树里高亮的是新的，中间显示的是旧的。
+    //
+    //    在调用点取 useChatSession()，不提到工厂函数体里：两个 composable
+    //    互相依赖（chat 要在收尾时刷新树），提前取会变成无限递归。
+    useChatSession().replaceMessages(result.messages);
+
+    // 2. 工作区路径变了：右栏「当前项目」卡片读的就是 useHealth，
+    //    刷新 health 一处即可，卡片自己会跟着变。
+    await loadHealth();
+
+    // 3. 活动流水讲的是上一个会话的事，留着会与眼前的会话对不上。
+    clearActivities();
+    addActivity(activityTitle, activityDetail, "system");
+
+    // 4. 清掉上一个会话留下的报错。它是一个已经消失的上下文里的失败，
+    //    继续挂在顶部只会让人以为当前会话出了问题。
+    clearError();
+
+    // 再拉一次：当前 cwd 要置顶，排序与消息数也可能变了。
+    await loadSessions();
+  }
+
+  /**
    * 切换到某个会话。工作目录会跟着会话走。
    *
    * 不可切换的会话这里直接拦下并说明原因，不发请求：
@@ -134,46 +185,48 @@ export function useSessionHistory() {
     try {
       const result = await switchSession(session.id);
 
-      currentCwd.value = result.currentCwd;
-      activeSessionPath.value = result.activeSessionPath;
-
-      // 切过去之后那组必须是展开的，否则当前节点藏在折叠的分组里。
-      const next = new Set(expandedWorkspaces.value);
-      next.add(result.currentCwd);
-      expandedWorkspaces.value = next;
-
-      // ---- 以下四处联动刷新（设计 8.3 / 第十节）----
-      // 这些都是"上一个会话的残留"，只有跟着换掉，屏幕上呈现的才自始至终
-      // 是同一个会话。
-
-      // 1. 聊天区换成目标会话的内容。漏掉这一步，切完之后中间栏还挂着
-      //    上一个会话的对话 —— 树里高亮的是新的，中间显示的是旧的。
-      //
-      //    在调用点取 useChatSession()，不提到工厂函数体里：两个 composable
-      //    互相依赖（chat 要在收尾时刷新树），提前取会变成无限递归。
-      useChatSession().replaceMessages(result.messages);
-
-      // 2. 工作区路径变了：右栏「当前项目」卡片读的就是 useHealth，
-      //    刷新 health 一处即可，卡片自己会跟着变。
-      await loadHealth();
-
-      // 3. 活动流水讲的是上一个会话的事，留着会与眼前的会话对不上。
-      clearActivities();
-      addActivity(
+      await applyActivatedSession(
+        result,
         "已切换会话",
         `当前会话：${sessionTitle(session)}`,
-        "system",
       );
-
-      // 4. 清掉上一个会话留下的报错。它是一个已经消失的上下文里的失败，
-      //    继续挂在顶部只会让人以为当前会话出了问题。
-      clearError();
-
-      // 重新拉一次：当前 cwd 要置顶，排序与消息数也可能变了。
-      await loadSessions();
     } catch (error) {
       const message = error instanceof Error ? error.message : "切换会话失败";
       notifyError(message);
+    } finally {
+      isSwitching.value = false;
+    }
+  }
+
+  /**
+   * 回到启动工作区，并开一个空会话。
+   *
+   * 为什么需要它：右栏卡片显示的是**会话自己的 cwd**，切到另一个目录下的历史会话
+   * 之后它就跟着跑了，而且回不去 —— 启动工作区一旦一条会话都不剩（把它的会话删光
+   * 就是这样），树里就没有可点的节点了。这是那条回来的路。
+   *
+   * 与切换会话共用同一套联动刷新：新会话的 messages 是空数组，于是聊天区被清空，
+   * 正是想要的。
+   */
+  async function newSession(): Promise<boolean> {
+    if (isSwitching.value) return false;
+
+    isSwitching.value = true;
+
+    try {
+      const result = await createSession();
+
+      await applyActivatedSession(
+        result,
+        "已回到启动工作区",
+        `新会话：${workspaceLabel(result.currentCwd)}`,
+      );
+
+      return true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "新建会话失败";
+      notifyError(message);
+      return false;
     } finally {
       isSwitching.value = false;
     }
@@ -251,6 +304,7 @@ export function useSessionHistory() {
     toggleWorkspace,
     loadSessions,
     switchTo,
+    newSession,
     rename,
     remove,
   };

@@ -6,6 +6,7 @@
  */
 
 import type {
+  NewSessionResponse,
   SessionListResponse,
   SessionWriteResponse,
   SwitchSessionResponse,
@@ -30,6 +31,19 @@ export function switchSession(id: string): Promise<SwitchSessionResponse> {
   return sendJson<SwitchSessionResponse>("POST", "/api/sessions/switch", {
     id,
   });
+}
+
+/**
+ * 在启动工作区新建一个会话（把运行时搬回去）。
+ *
+ * 用途：当前工作目录跟着历史会话跑到了别的目录，而启动工作区一条会话都不剩
+ * 的时候，树里没有可点的节点 —— 这是那条回来的路。
+ *
+ * 不传任何参数：目标目录是**启动工作区**，只有后端知道它是什么。
+ * 生成中后端返回 409 BUSY，错误文案可以直接展示。
+ */
+export function createSession(): Promise<NewSessionResponse> {
+  return sendJson<NewSessionResponse>("POST", "/api/sessions/new");
 }
 
 /**

@@ -67,6 +67,15 @@ export interface SwitchSessionResponse {
 }
 
 /**
+ * POST /api/sessions/new 的响应体。
+ *
+ * 与切换会话**刻意同形**：新建会话同样是「运行时被换掉了」的一种 ——
+ * 只是目标是一个还没落盘的空会话（messages 为空数组，activeSessionPath
+ * 指向那个尚未写出的文件）。前端两条路径因此复用同一套联动刷新。
+ */
+export type NewSessionResponse = SwitchSessionResponse;
+
+/**
  * PATCH / DELETE 的响应体。
  *
  * 写操作不做乐观更新：改完一律重新拉一次树，所以这里只需要 id

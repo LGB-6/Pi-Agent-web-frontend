@@ -3,7 +3,7 @@ import { useActivityLog } from "../../composables/useActivityLog";
 import { useLayoutPanels } from "../../composables/useLayoutPanels";
 import IconButton from "../ui/IconButton.vue";
 import ActivityList from "./ActivityList.vue";
-import FileListPlaceholder from "./FileListPlaceholder.vue";
+import FileTree from "./FileTree.vue";
 import RuntimeStatus from "./RuntimeStatus.vue";
 import WorkspaceCard from "./WorkspaceCard.vue";
 
@@ -49,10 +49,9 @@ const { closeRightPanel } = useLayoutPanels();
           </svg>
         </span>
         <h3>文件列表</h3>
-        <span class="coming-soon">待接入</span>
       </div>
 
-      <FileListPlaceholder />
+      <FileTree />
     </section>
 
     <section class="context-section activity-section">
@@ -142,16 +141,6 @@ const { closeRightPanel } = useLayoutPanels();
 .section-icon svg {
   width: 14px;
   height: 14px;
-}
-
-.coming-soon {
-  margin-left: auto;
-  padding: 3px 6px;
-  border-radius: 5px;
-  color: #999ea7;
-  background: #f1f2f5;
-  font-size: 9px;
-  white-space: nowrap;
 }
 
 .activity-section {
